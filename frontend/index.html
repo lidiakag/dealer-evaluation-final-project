@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Dealer Evaluation</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 40px;
+      background: #f5f5f5;
+    }
+
+    .container {
+      background: white;
+      padding: 30px;
+      max-width: 700px;
+      margin: auto;
+      border-radius: 10px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+
+    h1 {
+      text-align: center;
+    }
+
+    select {
+      padding: 10px;
+      margin: 10px 0;
+      width: 100%;
+      font-size: 16px;
+    }
+
+    .result {
+      margin-top: 25px;
+      padding: 15px;
+      background: #eef5ff;
+      border-radius: 8px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+    }
+
+    td, th {
+      border: 1px solid #ccc;
+      padding: 10px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Products price comparison</h1>
+
+    <label for="product">Select Product</label>
+    <select id="product">
+      <option value="">-- Select Product --</option>
+    </select>
+
+    <label for="dealer">Select Dealer</label>
+    <select id="dealer">
+      <option value="">-- Select Dealer --</option>
+    </select>
+
+    <div id="result" class="result">
+      Please select a product and dealer.
+    </div>
+  </div>
+
+  <script>
+    const PRODUCTS_API = "http://localhost:5000/";
+    const DEALERS_API = "http://localhost:8080/";
+
+    const productSelect = document.getElementById("product");
+    const dealerSelect = document.getElementById("dealer");
+    const result = document.getElementById("result");
+
+    async function loadProducts() {
+      try {
+        const response = await fetch(PRODUCTS_API + "products");
+        const products = await response.json();
+
+        products.forEach(product => {
+          const option = document.createElement("option");
+          option.value = product.name;
+          option.textContent = product.name;
+          productSelect.appendChild(option);
+        });
+      } catch (error) {
+        result.innerHTML = "Error loading products. Check that Product Details service is running on port 5000.";
+      }
+    }
+
+    productSelect.addEventListener("change", async function () {
+      const product = productSelect.value;
+      dealerSelect.innerHTML = '<option value="">-- Select Dealer --</option>';
+      result.innerHTML = "Please select a dealer.";
+
+      if (!product) return;
+
+      const response = await fetch(DEALERS_API + "dealers/" + encodeURIComponent(product));
+      const dealers = await response.json();
+
+      dealers.forEach(dealer => {
+        const option = document.createElement("option");
+        option.value = dealer;
+        option.textContent = dealer;
+        dealerSelect.appendChild(option);
+      });
+
+      const allOption = document.createElement("option");
+      allOption.value = "All Dealers";
+      allOption.textContent = "All Dealers";
+      dealerSelect.appendChild(allOption);
+    });
+
+    dealerSelect.addEventListener("change", async function () {
+      const product = productSelect.value;
+      const dealer = dealerSelect.value;
+
+      if (!product || !dealer) return;
+
+      if (dealer === "All Dealers") {
+        const response = await fetch(DEALERS_API + "prices/" + encodeURIComponent(product));
+        const prices = await response.json();
+
+        let html = `<h3>Prices for ${product}</h3>`;
+        html += "<table><tr><th>Dealer</th><th>Price</th></tr>";
+
+        Object.entries(prices).forEach(([dealerName, price]) => {
+          html += `<tr><td>${dealerName}</td><td>$${price}</td></tr>`;
+        });
+
+        html += "</table>";
+        result.innerHTML = html;
+      } else {
+        const response = await fetch(
+          DEALERS_API + "price/" + encodeURIComponent(product) + "/" + encodeURIComponent(dealer)
+        );
+        const data = await response.json();
+
+        result.innerHTML = `<h3>${product} costs $${data.price} at ${data.dealer}</h3>`;
+      }
+    });
+
+    loadProducts();
+  </script>
+</body>
+</html>
